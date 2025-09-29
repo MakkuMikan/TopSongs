@@ -202,6 +202,44 @@ async fn main() -> Result<()> {
         if let Some(v) = cfg.as_ref().and_then(|c| c.debug) { debug = v; }
     }
 
+    // If debug is enabled, print the config values as read from file (not the resolved effective values)
+    if debug {
+        match &cfg {
+            Some(c) => {
+                fn mask_opt(s: &Option<String>) -> String {
+                    match s {
+                        Some(v) if !v.is_empty() => {
+                            if v.len() <= 4 { "****".to_string() } else { format!("{}***", &v[..2]) }
+                        }
+                        Some(_) => "".to_string(),
+                        None => "<none>".to_string(),
+                    }
+                }
+                println!("[debug] Config loaded (raw values as read):");
+                println!("  username: {}", c.username.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  api_key: {}", mask_opt(&c.api_key));
+                println!("  period: {}", c.period.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  limit: {}", c.limit.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
+                println!("  select: {}", c.select.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
+                println!("  format: {}", c.format.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  join: {}", c.join.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  prefix: {}", c.prefix.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  suffix: {}", c.suffix.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  strip_feat: {}", c.strip_feat.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
+                println!("  strip_feat_regex: {}", c.strip_feat_regex.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  copy: {}", c.copy.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
+                println!("  discord_token: {}", mask_opt(&c.discord_token));
+                println!("  discord_bio_regex: {}", c.discord_bio_regex.clone().unwrap_or_else(|| "<none>".into()));
+                println!("  update_discord: {}", c.update_discord.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
+                println!("  discord_dry_run: {}", c.discord_dry_run.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
+                println!("  debug: {}", c.debug.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
+            }
+            None => {
+                println!("[debug] No config file was loaded (using CLI/env defaults)");
+            }
+        }
+    }
+
     let mut strip_feat_regex = cli.strip_feat_regex.clone();
     if strip_feat_regex.is_none() {
         if let Some(v) = cfg.as_ref().and_then(|c| c.strip_feat_regex.clone()) { strip_feat_regex = Some(v); }
