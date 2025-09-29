@@ -1,0 +1,4 @@
+﻿GET https://ws.audioscrobbler.com/2.0/?method=user.gettoptracks&user={{USERNAME}}&period={{PERIOD}}&api_key={{API_KEY}}&format=json&limit={{LIMIT}}
+# You can add custom headers below if needed
+# Example:
+# Accept: application/json
