@@ -122,6 +122,15 @@ async fn main() -> Result<()> {
     // Load optional config (KDL)
     let cfg = load_config();
 
+    // If no config found, log the searched locations to help users diagnose
+    if cfg.is_none() {
+        let locations = crate::config::config_search_locations();
+        eprintln!("No config file found. Searched locations:");
+        for p in locations {
+            eprintln!("  - {}", p.display());
+        }
+    }
+
     // Determine early debug flag from CLI or config
     let early_debug = if cli.debug { true } else { cfg.as_ref().and_then(|c| c.debug).unwrap_or(false) };
 
@@ -159,6 +168,10 @@ async fn main() -> Result<()> {
             }
             None => {
                 println!("[debug] No config file was loaded (using CLI/env defaults)");
+                let locations = crate::config::config_search_locations();
+                for p in locations {
+                    println!("[debug]   searched: {}", p.display());
+                }
             }
         }
     }

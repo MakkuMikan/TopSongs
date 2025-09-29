@@ -1,4 +1,5 @@
 ﻿use std::fs;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Default, Clone)]
 pub struct Config {
@@ -34,39 +35,33 @@ fn get_usize(node: &kdl::KdlNode) -> Option<usize> {
     node.entries().get(0)?.value().as_integer().and_then(|v| usize::try_from(v).ok())
 }
 
-pub fn load_config() -> Option<Config> {
-    use std::path::{Path, PathBuf};
+// Return the ordered list of paths we will search for the config file
+pub fn config_search_locations() -> Vec<PathBuf> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+    // 1) current working directory (no subfolder)
+    paths.push(PathBuf::from("topsongs.config.kdl"));
 
-    // Resolve config path with platform-specific fallbacks.
-    // New preferred locations (and legacy fallbacks):
-    //   1) ./topsongs/topsongs.config.kdl (current directory subfolder)
-    //   2) ./topsongs.config.kdl (legacy current directory)
-    //   3) Windows preferred: %APPDATA%\topsongs\topsongs.config.kdl
-    //      Windows legacy:   %APPDATA%\topsongs.config.kdl
-    //   4) Unix preferred:   $HOME/.config/topsongs/topsongs.config.kdl
-    //      Unix legacy:      $HOME/.config/topsongs.config.kdl
-    fn find_config_path() -> Option<PathBuf> {
-        // 1) current working directory (no subfolder)
-        let cwd = Path::new("topsongs.config.kdl");
-        if cwd.exists() {
-            return Some(cwd.to_path_buf());
+    // 2) platform-specific preferred locations (with topsongs subfolder)
+    if cfg!(target_os = "windows") {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            paths.push(PathBuf::from(appdata).join("topsongs").join("topsongs.config.kdl"));
         }
-        // 2) platform-specific preferred locations (with topsongs subfolder)
-        if cfg!(target_os = "windows") {
-            if let Some(appdata) = std::env::var_os("APPDATA") {
-                let preferred = PathBuf::from(appdata).join("topsongs").join("topsongs.config.kdl");
-                if preferred.exists() { return Some(preferred); }
-            }
-        } else {
-            // Treat everything else as Unix-y (Linux/macOS)
-            if let Some(home) = std::env::var_os("HOME") {
-                let preferred = PathBuf::from(home).join(".config").join("topsongs").join("topsongs.config.kdl");
-                if preferred.exists() { return Some(preferred); }
-            }
+    } else {
+        if let Some(home) = std::env::var_os("HOME") {
+            paths.push(PathBuf::from(home).join(".config").join("topsongs").join("topsongs.config.kdl"));
         }
-        None
     }
+    paths
+}
 
+pub fn find_config_path() -> Option<PathBuf> {
+    for p in config_search_locations() {
+        if p.exists() { return Some(p); }
+    }
+    None
+}
+
+pub fn load_config() -> Option<Config> {
     let path = find_config_path()?;
     let content = fs::read_to_string(&path).ok()?;
     let doc: kdl::KdlDocument = content.parse().ok()?;
