@@ -158,7 +158,7 @@ topsongs {
 "#;
 
 
-// Preferred config directory (platform-aware). Falls back to ./topsongs if env not set.
+// Preferred config directory (platform-aware). Falls back to current working directory if env not set.
 pub fn config_dir() -> std::path::PathBuf {
     if cfg!(target_os = "windows") {
         if let Some(appdata) = std::env::var_os("APPDATA") {
@@ -169,7 +169,7 @@ pub fn config_dir() -> std::path::PathBuf {
             return std::path::PathBuf::from(home).join(".config").join("topsongs");
         }
     }
-    std::path::PathBuf::from("topsongs")
+    std::path::PathBuf::from(".")
 }
 
 pub fn http_dir() -> std::path::PathBuf {
