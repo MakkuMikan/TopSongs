@@ -47,9 +47,9 @@ pub struct Cli {
     #[arg(short = 'k', long)]
     pub api_key: Option<String>,
 
-    /// Time period for top tracks
-    #[arg(short, long, value_enum, default_value_t = Period::Overall)]
-    pub period: Period,
+    /// Time period for top tracks (CLI overrides config when provided)
+    #[arg(short, long, value_enum)]
+    pub period: Option<Period>,
 
     /// Number of top tracks to fetch/display
     #[arg(short = 'n', long, default_value_t = 10, value_parser = clap::value_parser!(u32))]

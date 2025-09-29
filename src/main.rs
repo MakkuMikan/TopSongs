@@ -297,22 +297,22 @@ async fn main() -> Result<()> {
         }
     };
 
-    // Resolve other options with config overriding built-in defaults when CLI left them at defaults
-    // period
-    let mut period = cli.period;
-    if let Some(pstr) = cfg.as_ref().and_then(|c| c.period.clone()) {
-        if matches!(period, crate::cli::Period::Overall) {
-            period = match pstr.as_str() {
-                "overall" => crate::cli::Period::Overall,
-                "7day" => crate::cli::Period::SevenDay,
-                "1month" => crate::cli::Period::OneMonth,
-                "3month" => crate::cli::Period::ThreeMonth,
-                "6month" => crate::cli::Period::SixMonth,
-                "12month" => crate::cli::Period::TwelveMonth,
-                _ => period,
-            };
+    // Resolve period with precedence: CLI > config > default Overall
+    let period: crate::cli::Period = if let Some(p) = cli.period {
+        p
+    } else if let Some(pstr) = cfg.as_ref().and_then(|c| c.period.clone()) {
+        match pstr.as_str() {
+            "overall" => crate::cli::Period::Overall,
+            "7day" => crate::cli::Period::SevenDay,
+            "1month" => crate::cli::Period::OneMonth,
+            "3month" => crate::cli::Period::ThreeMonth,
+            "6month" => crate::cli::Period::SixMonth,
+            "12month" => crate::cli::Period::TwelveMonth,
+            _ => crate::cli::Period::Overall,
         }
-    }
+    } else {
+        crate::cli::Period::Overall
+    };
 
     // numeric options
     let mut limit = cli.limit;
