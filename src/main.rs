@@ -29,13 +29,20 @@ async fn main() -> Result<()> {
 
     // Handle generating an example config and exit
     if cli.generate_config {
-        match std::fs::write("topsongs.config.kdl", crate::config::EXAMPLE_KDL) {
+        use std::fs;
+        let dir = crate::config::config_dir();
+        if let Err(e) = fs::create_dir_all(&dir) {
+            eprintln!("Failed to create config directory {}: {}", dir.display(), e);
+            std::process::exit(1);
+        }
+        let path = dir.join("topsongs.config.kdl");
+        match fs::write(&path, crate::config::EXAMPLE_KDL) {
             Ok(_) => {
-                println!("Wrote example config to topsongs.config.kdl");
+                println!("Wrote example config to {}", path.display());
                 return Ok(());
             }
             Err(e) => {
-                eprintln!("Failed to write example config: {}", e);
+                eprintln!("Failed to write example config to {}: {}", path.display(), e);
                 std::process::exit(1);
             }
         }
@@ -43,12 +50,11 @@ async fn main() -> Result<()> {
 
     // Handle generating .http templates and exit
     if let Some(which) = &cli.generate_http {
-        use std::path::Path;
         use std::io::Write;
-        let http_dir = Path::new("http");
+        let http_dir = crate::config::http_dir();
         if !http_dir.exists() {
-            if let Err(e) = std::fs::create_dir_all(http_dir) {
-                eprintln!("Failed to create http directory: {}", e);
+            if let Err(e) = std::fs::create_dir_all(&http_dir) {
+                eprintln!("Failed to create http directory {}: {}", http_dir.display(), e);
                 std::process::exit(1);
             }
         }

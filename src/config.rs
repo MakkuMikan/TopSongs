@@ -35,12 +35,40 @@ fn get_usize(node: &kdl::KdlNode) -> Option<usize> {
 }
 
 pub fn load_config() -> Option<Config> {
-    // Look for a KDL config file in the current working directory
-    let path = std::path::Path::new("topsongs.config.kdl");
-    if !path.exists() {
-        return None;
+    use std::path::{Path, PathBuf};
+
+    // Resolve config path with platform-specific fallbacks.
+    // New preferred locations (and legacy fallbacks):
+    //   1) ./topsongs/topsongs.config.kdl (current directory subfolder)
+    //   2) ./topsongs.config.kdl (legacy current directory)
+    //   3) Windows preferred: %APPDATA%\topsongs\topsongs.config.kdl
+    //      Windows legacy:   %APPDATA%\topsongs.config.kdl
+    //   4) Unix preferred:   $HOME/.config/topsongs/topsongs.config.kdl
+    //      Unix legacy:      $HOME/.config/topsongs.config.kdl
+    fn find_config_path() -> Option<PathBuf> {
+        // 1) current working directory (no subfolder)
+        let cwd = Path::new("topsongs.config.kdl");
+        if cwd.exists() {
+            return Some(cwd.to_path_buf());
+        }
+        // 2) platform-specific preferred locations (with topsongs subfolder)
+        if cfg!(target_os = "windows") {
+            if let Some(appdata) = std::env::var_os("APPDATA") {
+                let preferred = PathBuf::from(appdata).join("topsongs").join("topsongs.config.kdl");
+                if preferred.exists() { return Some(preferred); }
+            }
+        } else {
+            // Treat everything else as Unix-y (Linux/macOS)
+            if let Some(home) = std::env::var_os("HOME") {
+                let preferred = PathBuf::from(home).join(".config").join("topsongs").join("topsongs.config.kdl");
+                if preferred.exists() { return Some(preferred); }
+            }
+        }
+        None
     }
-    let content = fs::read_to_string(path).ok()?;
+
+    let path = find_config_path()?;
+    let content = fs::read_to_string(&path).ok()?;
     let doc: kdl::KdlDocument = content.parse().ok()?;
 
     // Support either a root node `topsongs { ... }` or flat top-level entries
@@ -81,10 +109,15 @@ pub fn load_config() -> Option<Config> {
 
 // Example KDL configuration embedded here for convenience
 pub const EXAMPLE_KDL: &str = r#"// topsongs.config.kdl
+// Where this file is read from (in order):
+//   1) ./topsongs.config.kdl (current working directory)
+//   2) Windows: %APPDATA%\\topsongs\\topsongs.config.kdl
+//   3) Linux/macOS: $HOME/.config/topsongs/topsongs.config.kdl
+// .http templates live under the same config directory, in the 'http' subfolder.
 // You can wrap settings inside a `topsongs { ... }` block or keep them flat at the root.
 // Strings should be quoted; numbers and booleans are bare.
 // Note: To create barebones .http templates, run: topsongs --generate-http
-//   - With no value: creates all missing default templates in ./http
+//   - With no value: creates all missing default templates in <config_dir>/http
 //   - With a value: creates a specific one if missing (one of: lastfm_top_tracks | discord_get_me | discord_patch_bio)
 
 // Escape sequences: `\n` becomes a newline in prefix/suffix/join and inside format.
@@ -123,3 +156,22 @@ topsongs {
     //discord_dry_run true      // preview the replacement only; no PATCH
 }
 "#;
+
+
+// Preferred config directory (platform-aware). Falls back to ./topsongs if env not set.
+pub fn config_dir() -> std::path::PathBuf {
+    if cfg!(target_os = "windows") {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            return std::path::PathBuf::from(appdata).join("topsongs");
+        }
+    } else {
+        if let Some(home) = std::env::var_os("HOME") {
+            return std::path::PathBuf::from(home).join(".config").join("topsongs");
+        }
+    }
+    std::path::PathBuf::from("topsongs")
+}
+
+pub fn http_dir() -> std::path::PathBuf {
+    config_dir().join("http")
+}

@@ -34,12 +34,14 @@ pub async fn fetch_top_tracks(
     limit: u32,
     debug: bool,
 ) -> Result<Vec<Track>> {
-    // Use default .http path exclusively
-    let path = std::path::Path::new("http\\lastfm_top_tracks.http");
+    // Prefer config http dir; fall back to legacy ./http
+    let preferred = crate::config::http_dir().join("lastfm_top_tracks.http");
+    let legacy = std::path::Path::new("http\\lastfm_top_tracks.http").to_path_buf();
+    let chosen = if preferred.exists() { preferred } else { legacy };
     let client = reqwest::Client::new();
-    let resp = if path.exists() {
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read .http file at {}", path.to_string_lossy()))?;
+    let resp = if chosen.exists() {
+        let content = fs::read_to_string(&chosen)
+            .with_context(|| format!("Failed to read .http file at {}", chosen.to_string_lossy()))?;
         let spec = parse_http_spec(&content)?;
         let vars = build_vars_map(&[
             ("USERNAME", username.to_string()),
@@ -52,7 +54,12 @@ pub async fn fetch_top_tracks(
         send_with_debug(rb, debug, body_preview).await?
     } else {
         // Required .http file missing; do nothing by returning no tracks
-        if debug { eprintln!("Missing http\\lastfm_top_tracks.http. Skipping Last.fm request."); }
+        if debug {
+            eprintln!(
+                "Missing lastfm_top_tracks.http in {} or legacy ./http. Run with --generate-http to create templates. Skipping Last.fm request.",
+                crate::config::http_dir().display()
+            );
+        }
         return Ok(vec![]);
     };
 

@@ -11,12 +11,14 @@ struct DiscordUser {
 }
 
 pub async fn get_current_bio(token: &str, debug: bool) -> Result<String> {
-    // Use default .http path exclusively
-    let path = std::path::Path::new("http\\discord_get_me.http");
+    // Prefer config http dir; fall back to legacy ./http
+    let preferred = crate::config::http_dir().join("discord_get_me.http");
+    let legacy = std::path::Path::new("http\\discord_get_me.http").to_path_buf();
+    let chosen = if preferred.exists() { preferred } else { legacy };
     let client = reqwest::Client::new();
-    let resp = if path.exists() {
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read .http file at {}", path.to_string_lossy()))?;
+    let resp = if chosen.exists() {
+        let content = fs::read_to_string(&chosen)
+            .with_context(|| format!("Failed to read .http file at {}", chosen.to_string_lossy()))?;
         let spec = parse_http_spec(&content)?;
         // Only substitute token or env vars; headers like UA/locale/etc must be hardcoded in the .http file
         let vars = build_vars_map(&[("DISCORD_TOKEN", token.to_string())]);
@@ -25,7 +27,12 @@ pub async fn get_current_bio(token: &str, debug: bool) -> Result<String> {
         send_with_debug(rb, debug, body_preview).await?
     } else {
         // Required .http file missing
-        return Err(anyhow!("Required http\\discord_get_me.http not found. Skipping Discord GET."));
+        return Err(anyhow!(
+            format!(
+                "Required discord_get_me.http not found in {} or legacy ./http. Run with --generate-http to create templates.",
+                crate::config::http_dir().display()
+            )
+        ));
     };
     let text = resp.text().await?;
     let user: DiscordUser = serde_json::from_str(&text)
@@ -34,12 +41,14 @@ pub async fn get_current_bio(token: &str, debug: bool) -> Result<String> {
 }
 
 pub async fn update_bio(token: &str, new_bio: &str, debug: bool) -> Result<()> {
-    // Use default .http path exclusively
-    let path = std::path::Path::new("http\\discord_patch_bio.http");
+    // Prefer config http dir; fall back to legacy ./http
+    let preferred = crate::config::http_dir().join("discord_patch_bio.http");
+    let legacy = std::path::Path::new("http\\discord_patch_bio.http").to_path_buf();
+    let chosen = if preferred.exists() { preferred } else { legacy };
     let client = reqwest::Client::new();
-    if path.exists() {
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read .http file at {}", path.to_string_lossy()))?;
+    if chosen.exists() {
+        let content = fs::read_to_string(&chosen)
+            .with_context(|| format!("Failed to read .http file at {}", chosen.to_string_lossy()))?;
         let spec = parse_http_spec(&content)?;
         // Only substitute token/new bio. All header values must be hardcoded in the .http file.
         // IMPORTANT: The .http template wraps {{NEW_BIO}} in quotes, so we must inject a JSON-escaped string content
@@ -54,6 +63,11 @@ pub async fn update_bio(token: &str, new_bio: &str, debug: bool) -> Result<()> {
         Ok(())
     } else {
         // Required .http file missing
-        return Err(anyhow!("Required http\\discord_patch_bio.http not found. Skipping Discord PATCH."));
+        return Err(anyhow!(
+            format!(
+                "Required discord_patch_bio.http not found in {} or legacy ./http. Run with --generate-http to create templates.",
+                crate::config::http_dir().display()
+            )
+        ));
     }
 }
