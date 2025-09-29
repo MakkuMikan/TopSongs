@@ -120,14 +120,35 @@ async fn main() -> Result<()> {
     }
 
     // Load optional config (KDL)
+    let found_config_path = crate::config::find_config_path();
     let cfg = load_config();
 
-    // If no config found, log the searched locations to help users diagnose
+    // If no config loaded, differentiate between not found vs found-but-invalid
     if cfg.is_none() {
-        let locations = crate::config::config_search_locations();
-        eprintln!("No config file found. Searched locations:");
-        for p in locations {
-            eprintln!("  - {}", p.display());
+        if let Some(p) = &found_config_path {
+            // Try to surface a helpful error message
+            use std::fs;
+            match fs::read_to_string(p) {
+                Ok(content) => {
+                    match content.parse::<kdl::KdlDocument>() {
+                        Ok(_) => {
+                            eprintln!("Config file found at {}, but failed to interpret its contents. Please check KDL structure.", p.display());
+                        }
+                        Err(e) => {
+                            eprintln!("Config file found at {} but failed to parse as KDL: {}", p.display(), e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Config file found at {} but failed to read: {}", p.display(), e);
+                }
+            }
+        } else if cli.debug {
+            let locations = crate::config::config_search_locations();
+            eprintln!("No config file found. Searched locations:");
+            for p in locations {
+                eprintln!("  - {}", p.display());
+            }
         }
     }
 
