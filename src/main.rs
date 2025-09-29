@@ -402,6 +402,11 @@ async fn main() -> Result<()> {
         println!("{:>2}. {} — {} ({} plays)", idx + 1, t.artist.name, t.name, pc);
     }
 
+    // If in query mode, we only show the fetched list and exit.
+    if cli.query {
+        return Ok(());
+    }
+
     // Selection: auto-select top N if provided; otherwise prompt interactively
     let chosen: Vec<&Track> = if let Some(mut n) = select_opt {
         if n == 0 { n = 1; }

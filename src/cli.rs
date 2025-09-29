@@ -55,6 +55,10 @@ pub struct Cli {
     #[arg(short = 'n', long, default_value_t = 10, value_parser = clap::value_parser!(u32))]
     pub limit: u32,
 
+    /// Show Last.fm results only and exit (skip the selection and rendering process)
+    #[arg(short = 'Q', long = "query")]
+    pub query: bool,
+
     /// Automatically include the top N tracks (skips interactive selection). If omitted, you'll be prompted to choose interactively.
     #[arg(short, long, value_parser = clap::value_parser!(usize))]
     pub select: Option<usize>,

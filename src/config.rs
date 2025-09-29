@@ -110,7 +110,7 @@ pub const EXAMPLE_KDL: &str = r#"// topsongs.config.kdl
 //   3) Linux/macOS: $HOME/.config/topsongs/topsongs.config.kdl
 // .http templates live under the same config directory, in the 'http' subfolder.
 // You can wrap settings inside a `topsongs { ... }` block or keep them flat at the root.
-// Strings should be quoted; numbers and booleans are bare.
+// Strings should be quoted; numbers are bare; booleans use #true/#false (KDL 2.0).
 // Note: To create barebones .http templates, run: topsongs --generate-http
 //   - With no value: creates all missing default templates in <config_dir>/http
 //   - With a value: creates a specific one if missing (one of: lastfm_top_tracks | discord_get_me | discord_patch_bio)
@@ -135,20 +135,20 @@ topsongs {
     //suffix ""                 // text after the list
 
     // Title cleanup
-    strip_feat true     // remove "feat." and similar from track titles
+    strip_feat #true     // remove "feat." and similar from track titles
     strip_feat_regex "(?i)\\s*(?:[\\(\\[]\\s*(?:feat\\.?|ft\\.?|with)\\b.*?[\\)\\]]|-\\s*(?:feat\\.?|ft\\.?|with)\\b.*)$"
 
     // Convenience
-    copy false          // copy final output to clipboard (Windows only)
-    debug false         // verbose HTTP logging; shows request line/headers and error bodies
+    copy #false          // copy final output to clipboard (Windows only)
+    debug #false         // verbose HTTP logging; shows request line/headers and error bodies
 
     // Discord (manual updates preferred; use --discord-dry-run/--update-discord if needed)
     // Provide your user token only if you intend to use Discord operations
     discord_token ""
     // Regex to find the section in your current bio to replace
     discord_bio_regex "/\\*\\*[\\w ]+\\*\\*:?[\r]?(\n[ \\w-]+)+\n/"
-    //update_discord true       // perform actual PATCH to update the bio (requires token and templates)
-    //discord_dry_run true      // preview the replacement only; no PATCH
+    //update_discord #true       // perform actual PATCH to update the bio (requires token and templates)
+    //discord_dry_run #true      // preview the replacement only; no PATCH
 }
 "#;
 
