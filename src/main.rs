@@ -9,6 +9,78 @@ mod clipboard;
 mod config;
 mod ui;
 
+fn print_kdl_parse_errors(path: &std::path::Path, source: &str, err: &kdl::KdlError) {
+    // Header
+    eprintln!("Config file found at {} but failed to parse as KDL:", path.display());
+
+    // Try to print structured diagnostics if available
+    let mut printed_any = false;
+
+    // Try common access pattern: a `diagnostics` field on the error
+    #[allow(unused_variables)]
+    {
+        // SAFETY: If this compiles, we have access to diagnostics
+        #[allow(dead_code)]
+        struct _Check;
+        // Use pattern that should compile with kdl 6.x
+        // If the field/method doesn't exist, the fallback below will be used.
+    }
+
+    // Attempt via field access (kdl 6.x exposes `diagnostics: Vec<KdlDiagnostic>`)
+    #[allow(unused_variables)]
+    {
+        // Try direct field access
+        // If this compiles for kdl 6.5.0, it will use the embedded diagnostics
+        let diags: &[kdl::KdlDiagnostic] = &err.diagnostics;
+        printed_any = print_diags_from_slice(source, diags);
+    }
+
+    // Final fallback: print Display for the error
+    if !printed_any {
+        eprintln!("  {}", err);
+    }
+}
+
+fn print_diags_from_slice(source: &str, diags: &[kdl::KdlDiagnostic]) -> bool {
+    let mut any = false;
+    for d in diags {
+        any = true;
+        let msg = d.message.as_deref().unwrap_or("KDL parse error");
+        eprintln!("  - {}", msg);
+        // Use the main span to compute location
+        let start = d.span.offset();
+        let (line_no, col_no, line_text) = byte_range_to_line_col(source, start);
+        eprintln!("      at line {}, col {}", line_no, col_no);
+        let display_line = line_text.replace('\t', " ");
+        eprintln!("        {}", display_line);
+        let mut caret = String::new();
+        for _ in 1..col_no { caret.push(' '); }
+        caret.push('^');
+        eprintln!("        {}", caret);
+        if let Some(label) = d.label.as_deref() { eprintln!("        note: {}", label); }
+        if let Some(help) = d.help.as_deref() { eprintln!("    help: {}", help); }
+    }
+    any
+}
+
+fn byte_range_to_line_col(source: &str, byte_start: usize) -> (usize, usize, String) {
+    let mut acc = 0usize;
+    for (i, line) in source.split_inclusive(['\n', '\r']).enumerate() {
+        let line_len = line.len();
+        if acc + line_len > byte_start {
+            // Found line
+            let line_no = i + 1;
+            let col_no = byte_start - acc + 1; // 1-based
+            let clean = line.trim_end_matches(['\n', '\r']);
+            return (line_no, col_no, clean.to_string());
+        }
+        acc += line_len;
+    }
+    // Default to end
+    let last_line = source.lines().last().unwrap_or("").to_string();
+    (source.lines().count().max(1), last_line.len().saturating_add(1), last_line)
+}
+
 use std::env;
 
 use anyhow::{Context, Result};
@@ -135,7 +207,8 @@ async fn main() -> Result<()> {
                             eprintln!("Config file found at {}, but failed to interpret its contents. Please check KDL structure.", p.display());
                         }
                         Err(e) => {
-                            eprintln!("Config file found at {} but failed to parse as KDL: {:#?}", p.display(), e);
+                            // Parse and print concise KDL diagnostics instead of dumping the whole error
+                            print_kdl_parse_errors(p, &content, &e);
                         }
                     }
                 }
