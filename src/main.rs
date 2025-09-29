@@ -135,7 +135,7 @@ async fn main() -> Result<()> {
                             eprintln!("Config file found at {}, but failed to interpret its contents. Please check KDL structure.", p.display());
                         }
                         Err(e) => {
-                            eprintln!("Config file found at {} but failed to parse as KDL: {}", p.display(), e);
+                            eprintln!("Config file found at {} but failed to parse as KDL: {:#?}", p.display(), e);
                         }
                     }
                 }
@@ -188,10 +188,14 @@ async fn main() -> Result<()> {
                 println!("  debug: {}", c.debug.map(|v| v.to_string()).unwrap_or_else(|| "<none>".into()));
             }
             None => {
-                println!("[debug] No config file was loaded (using CLI/env defaults)");
-                let locations = crate::config::config_search_locations();
-                for p in locations {
-                    println!("[debug]   searched: {}", p.display());
+                if let Some(p) = &found_config_path {
+                    println!("[debug] Config file was found at {} but failed to load (read/parse error). See error above.", p.display());
+                } else {
+                    println!("[debug] No config file was loaded (using CLI/env defaults)");
+                    let locations = crate::config::config_search_locations();
+                    for p in locations {
+                        println!("[debug]   searched: {}", p.display());
+                    }
                 }
             }
         }
